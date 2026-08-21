@@ -149,6 +149,17 @@
 
   .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: var(--bg1); padding: 10px 24px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; z-index: 9999; transition: transform 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
   .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* 活动目录切换栏 */
+  .act-bar { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  .act-tab {
+    padding: 9px 22px; border-radius: 24px; cursor: pointer; font-size: 0.92rem;
+    font-weight: 600; transition: all 0.2s; border: 1px solid var(--border);
+    background: var(--card); color: var(--text-dim);
+  }
+  .act-tab:hover { border-color: var(--gold); color: var(--gold); }
+  .act-tab.active { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: var(--bg1); border-color: var(--gold); }
+  .act-current { text-align: center; color: var(--text-faint); font-size: 0.78rem; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -160,6 +171,8 @@
       <div class="tab active" id="tabCalc" onclick="switchTab('calc')">计算模式</div>
       <div class="tab" id="tabEdit" onclick="switchTab('edit')">编辑模式</div>
     </div>
+    <div class="act-bar" id="actBar"></div>
+    <div class="act-current" id="actCurrent"></div>
   </header>
 
   <div class="score-panel">
@@ -270,48 +283,81 @@ var QRCode=function(){function a(a){this.mode=f.MODE_8BIT_BYTE;this.parsedData=a
 </script>
 
 <script>
-// ===== 默认数据 =====
-const DEFAULT_DATA = [
-  { score: 45, items: [{ name: "《共产党宣言》手稿", note: "马克思、恩格斯著作手稿" }]},
-  { score: 28, items: [{ name: '"赓续文脉"印章雕塑', note: "印章主题雕塑作品" }]},
-  { score: 18, items: [{ name: "《吉祥遍至口合本续》", note: "藏文佛教经典" }]},
-  { score: 10, items: [{ name: "《伟业征程》", note: "" }]},
-  { score: 8, items: [
-    { name: "《山河揽胜》壁画", note: "壁画作品" },
-    { name: "墨皇本《集王圣教序》", note: "王羲之集字碑帖" },
-    { name: "《西楼苏帖》", note: "苏轼书法法帖" },
-    { name: "《棠湖诗稿》", note: "古典诗集" }
+// ===== 默认数据（活动目录） =====
+const DEFAULT_CATALOG = [
+  { id: "wenhua", name: "文化遗产", data: [
+    { score: 45, items: [{ name: "《共产党宣言》手稿", note: "马克思、恩格斯著作手稿" }]},
+    { score: 28, items: [{ name: '"赓续文脉"印章雕塑', note: "印章主题雕塑作品" }]},
+    { score: 18, items: [{ name: "《吉祥遍至口合本续》", note: "藏文佛教经典" }]},
+    { score: 10, items: [{ name: "《伟业征程》", note: "" }]},
+    { score: 8, items: [
+      { name: "《山河揽胜》壁画", note: "壁画作品" },
+      { name: "墨皇本《集王圣教序》", note: "王羲之集字碑帖" },
+      { name: "《西楼苏帖》", note: "苏轼书法法帖" },
+      { name: "《棠湖诗稿》", note: "古典诗集" }
+    ]},
+    { score: 6, items: [
+      { name: "大匠丝路", note: "丝路主题作品" },
+      { name: "《妙法莲华经卷第四》", note: "佛教经典法华经" },
+      { name: "《使琉球录》", note: "明代出使琉球记录" },
+      { name: "《丝路华光》", note: "丝路主题作品" }
+    ]},
+    { score: 3, items: [
+      { name: "《丁氏家藏晚清名人书札》", note: "晚清名人书信集" },
+      { name: "林则徐行书中堂《苏轼书司空图诗》", note: "林则徐书法作品" },
+      { name: "《淮河全图》", note: "淮河流域地图" },
+      { name: "《运河全图》", note: "运河全图" },
+      { name: "《黄河全图》", note: "黄河流域地图" },
+      { name: "《老子道德经二卷》", note: "道德经古籍" },
+      { name: "《萌宋楼藏书源流考》", note: "藏书源流考证文献" },
+      { name: "《论语注疏解经二十卷》", note: "论语注疏经典" },
+      { name: "《世说新语八卷》", note: "南朝笔记小说" },
+      { name: "《宋元旧本书经眼录》", note: "宋元善本目录学著作" },
+      { name: "《苏文六卷》", note: "苏轼文集" }
+    ]}
   ]},
-  { score: 6, items: [
-    { name: "大匠丝路", note: "丝路主题作品" },
-    { name: "《妙法莲华经卷第四》", note: "佛教经典法华经" },
-    { name: "《使琉球录》", note: "明代出使琉球记录" },
-    { name: "《丝路华光》", note: "丝路主题作品" }
-  ]},
-  { score: 3, items: [
-    { name: "《丁氏家藏晚清名人书札》", note: "晚清名人书信集" },
-    { name: "林则徐行书中堂《苏轼书司空图诗》", note: "林则徐书法作品" },
-    { name: "《淮河全图》", note: "淮河流域地图" },
-    { name: "《运河全图》", note: "运河全图" },
-    { name: "《黄河全图》", note: "黄河流域地图" },
-    { name: "《老子道德经二卷》", note: "道德经古籍" },
-    { name: "《萌宋楼藏书源流考》", note: "藏书源流考证文献" },
-    { name: "《论语注疏解经二十卷》", note: "论语注疏经典" },
-    { name: "《世说新语八卷》", note: "南朝笔记小说" },
-    { name: "《宋元旧本书经眼录》", note: "宋元善本目录学著作" },
-    { name: "《苏文六卷》", note: "苏轼文集" }
+  { id: "dahan", name: "大汉雄风", data: [
+    { score: 11, items: [{ name: "大汉飞将军·李广", note: "" }]},
+    { score: 6, items: [{ name: "大汉司卫·卫青", note: "" }]},
+    { score: 4, items: [
+      { name: "启幕者·司马迁", note: "" },
+      { name: "大汉地动仪", note: "" }
+    ]},
+    { score: 2, items: [{ name: "谪仙人·东方朔", note: "" }]}
   ]}
 ];
 
+let catalog = [];
+let currentActId = "";
 let appData = [];
 let qty = {};
-const STORAGE_KEY = "heritage-calculator-data";
-const QTY_KEY = "heritage-calculator-qty";
+const CATALOG_KEY = "heritage-calc-catalog";
+const ACT_KEY = "heritage-calc-current-act";
+const QTY_KEY = "heritage-calc-qty";
 
-function saveData() { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function saveData() {
+  sessionStorage.setItem(CATALOG_KEY, JSON.stringify(catalog));
+  sessionStorage.setItem(ACT_KEY, currentActId);
+}
 function saveQty() { sessionStorage.setItem(QTY_KEY, JSON.stringify(qty)); }
+
+function applyCurrentActivity() {
+  const act = catalog.find(a => a.id === currentActId) || catalog[0];
+  appData = act.data;
+}
+function setAppData(newArr) {
+  const act = catalog.find(a => a.id === currentActId) || catalog[0];
+  act.data = newArr;
+  appData = act.data;
+}
+
 function loadData() {
-  try { appData = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null") || JSON.parse(JSON.stringify(DEFAULT_DATA)); } catch(e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+  try { catalog = JSON.parse(sessionStorage.getItem(CATALOG_KEY) || "null") || deepClone(DEFAULT_CATALOG); } catch(e) { catalog = deepClone(DEFAULT_CATALOG); }
+  try { currentActId = sessionStorage.getItem(ACT_KEY) || catalog[0].id; } catch(e) { currentActId = catalog[0].id; }
+  if (!catalog.find(a => a.id === currentActId)) currentActId = catalog[0].id;
+  applyCurrentActivity();
   try { qty = JSON.parse(sessionStorage.getItem(QTY_KEY) || "null") || {}; } catch(e) { qty = {}; }
 }
 
@@ -410,6 +456,25 @@ function switchTab(tab) {
   else { document.getElementById("calcMode").style.display = "none"; document.getElementById("editMode").style.display = ""; document.getElementById("tabCalc").classList.remove("active"); document.getElementById("tabEdit").classList.add("active"); }
 }
 
+function renderActBar() {
+  const bar = document.getElementById("actBar");
+  bar.innerHTML = catalog.map(a =>
+    `<div class="act-tab ${a.id === currentActId ? 'active' : ''}" onclick="switchActivity('${a.id}')">${escapeHtml(a.name)}</div>`
+  ).join("");
+  const cur = catalog.find(a => a.id === currentActId);
+  document.getElementById("actCurrent").textContent = cur ? `当前活动：${cur.name}（共 ${cur.data.reduce((s,g)=>s+g.items.length,0)} 件藏品）` : "";
+}
+
+function switchActivity(id) {
+  if (id === currentActId) return;
+  currentActId = id;
+  qty = {};
+  applyCurrentActivity();
+  saveData(); saveQty();
+  renderActBar(); renderGroups();
+  showToast(`已切换到「${catalog.find(a => a.id === id).name}」`);
+}
+
 function addItem() {
   const name = document.getElementById("newName").value.trim();
   const score = parseInt(document.getElementById("newScore").value);
@@ -450,9 +515,9 @@ function deleteGroup(gi) {
 }
 
 function deleteAllItems() {
-  if (!confirm("确定清空所有藏品？此操作不可撤销。")) return;
-  appData = []; qty = {}; saveData(); saveQty(); renderGroups();
-  showToast("已清空所有藏品");
+  if (!confirm("确定清空当前活动的所有藏品？此操作不可撤销。")) return;
+  setAppData([]); qty = {}; saveData(); saveQty(); renderGroups();
+  showToast("已清空当前活动所有藏品");
 }
 
 function rebuildQty() {
@@ -478,8 +543,9 @@ function importConfig() {
   try {
     const text = document.getElementById("configArea").value.trim();
     if (!text) { showToast("请先粘贴JSON配置"); return; }
-    appData = JSON.parse(text);
-    if (!Array.isArray(appData)) throw new Error("格式错误");
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) throw new Error("格式错误");
+    setAppData(parsed);
     rebuildQty(); saveData(); saveQty(); renderGroups();
     showToast("配置导入成功！");
   } catch(e) { showToast("导入失败: " + e.message); }
@@ -501,10 +567,11 @@ function exportResult() {
 }
 
 function resetToDefault() {
-  if (!confirm("恢复默认数据？当前自定义内容将丢失。")) return;
-  appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); qty = {};
+  if (!confirm("恢复当前活动的默认藏品？当前自定义内容将丢失。")) return;
+  const def = DEFAULT_CATALOG.find(a => a.id === currentActId);
+  setAppData(def ? deepClone(def.data) : []); qty = {};
   saveData(); saveQty(); renderGroups();
-  showToast("已恢复默认数据");
+  showToast("已恢复当前活动默认数据");
 }
 
 function clearAll() { qty = {}; saveQty(); renderGroups(); showToast("已清空本会话的选择（不影响其他人）"); }
@@ -551,7 +618,7 @@ function showToast(msg) {
 }
 
 // ===== 初始化 =====
-loadData(); renderGroups();
+loadData(); renderActBar(); renderGroups();
 </script>
 </body>
 </html>
