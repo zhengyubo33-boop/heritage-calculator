@@ -242,7 +242,7 @@
   </div>
 
   <div style="text-align:center; margin-top:30px; color:var(--text-faint); font-size:0.75rem;">
-    数据自动保存在浏览器本地 · 单文件HTML可离线使用
+    每个扫码用户的数据相互独立 · 关闭页面自动清空 · 不影响他人
   </div>
 </div>
 
@@ -308,11 +308,11 @@ let qty = {};
 const STORAGE_KEY = "heritage-calculator-data";
 const QTY_KEY = "heritage-calculator-qty";
 
-function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
-function saveQty() { localStorage.setItem(QTY_KEY, JSON.stringify(qty)); }
+function saveData() { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+function saveQty() { sessionStorage.setItem(QTY_KEY, JSON.stringify(qty)); }
 function loadData() {
-  try { appData = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || JSON.parse(JSON.stringify(DEFAULT_DATA)); } catch(e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
-  try { qty = JSON.parse(localStorage.getItem(QTY_KEY) || "null") || {}; } catch(e) { qty = {}; }
+  try { appData = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null") || JSON.parse(JSON.stringify(DEFAULT_DATA)); } catch(e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+  try { qty = JSON.parse(sessionStorage.getItem(QTY_KEY) || "null") || {}; } catch(e) { qty = {}; }
 }
 
 function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
@@ -507,7 +507,7 @@ function resetToDefault() {
   showToast("已恢复默认数据");
 }
 
-function clearAll() { qty = {}; saveQty(); renderGroups(); showToast("已清空选择"); }
+function clearAll() { qty = {}; saveQty(); renderGroups(); showToast("已清空本会话的选择（不影响其他人）"); }
 
 // ===== 二维码分享 =====
 function showShareQR() {
