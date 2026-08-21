@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>积分计算器 - 通用版</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg1: #1a1a2e; --bg2: #16213e; --bg3: #0f3460;
+    --card: rgba(30, 42, 74, 0.5); --card-hover: rgba(40, 55, 90, 0.6);
+    --border: #2a3a5a; --border-hover: #5a6a8a;
+    --gold: #e2b65c; --gold-light: #f0d090; --gold-dark: #c89a40;
+    --text: #e0e0e0; --text-dim: #8899bb; --text-faint: #556688;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 50%, var(--bg3) 100%);
+    min-height: 100vh; color: var(--text); padding: 20px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 {
+    font-size: 2rem;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light), var(--gold));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 6px;
+  }
+  header p { color: var(--text-dim); font-size: 0.9rem; }
+  .tab-bar { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+  .tab {
+    padding: 8px 24px; border-radius: 10px; cursor: pointer; font-size: 0.9rem;
+    font-weight: 600; transition: all 0.2s; border: 1px solid var(--border);
+    background: var(--card); color: var(--text-dim);
+  }
+  .tab.active { background: rgba(226,182,92,0.18); color: var(--gold); border-color: var(--gold); }
+
+  .score-panel {
+    position: sticky; top: 10px; z-index: 100;
+    background: linear-gradient(135deg, #1e2a4a, #2a3a5a);
+    border: 1px solid #3a4a6a; border-radius: 16px;
+    padding: 18px 30px; margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .score-panel .label { font-size: 0.95rem; color: var(--text-dim); }
+  .score-panel .total {
+    font-size: 2.8rem; font-weight: 700;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .score-panel .right { text-align: right; }
+  .progress-bar { width: 100%; height: 6px; background: #1a2a4a; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); border-radius: 3px; transition: width 0.4s ease; }
+
+  .group { margin-bottom: 18px; }
+  .group-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer; user-select: none; flex-wrap: wrap; }
+  .group-badge {
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: var(--bg1); font-weight: 700; font-size: 1.05rem;
+    padding: 4px 14px; border-radius: 20px; min-width: 60px; text-align: center;
+  }
+  .group-title { font-size: 0.95rem; color: #aabbdd; }
+  .group-subtotal { font-size: 0.8rem; color: var(--text-faint); margin-left: auto; }
+  .group-subtotal.active { color: var(--gold); font-weight: 600; }
+  .group-arrow { color: var(--text-faint); transition: transform 0.3s; }
+  .group-arrow.collapsed { transform: rotate(-90deg); }
+  .group-items { transition: max-height 0.3s ease; overflow: hidden; }
+  .group-items.collapsed { max-height: 0; }
+  .group-delete { color: #ff6060; cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: opacity 0.2s; }
+  .group-delete:hover { opacity: 1; }
+
+  .item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; transition: all 0.2s ease;
+  }
+  .item:hover { border-color: var(--border-hover); background: var(--card-hover); }
+  .item.active { border-color: var(--gold); background: rgba(226,182,92,0.12); box-shadow: 0 0 12px rgba(226,182,92,0.15); }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 0.95rem; color: var(--text); }
+  .item-note { font-size: 0.75rem; color: var(--text-faint); margin-top: 2px; }
+  .item-score { font-weight: 700; font-size: 1.05rem; color: var(--gold); flex-shrink: 0; min-width: 50px; text-align: right; }
+  .item-delete { color: #ff6060; cursor: pointer; font-size: 1rem; opacity: 0.4; transition: opacity 0.2s; flex-shrink: 0; }
+  .item-delete:hover { opacity: 1; }
+
+  .qty-control { display: flex; align-items: center; flex-shrink: 0; background: rgba(20,30,55,0.8); border: 1px solid #3a4a6a; border-radius: 8px; overflow: hidden; }
+  .qty-btn { width: 32px; height: 32px; border: none; cursor: pointer; background: rgba(40,55,90,0.8); color: #aabbdd; font-size: 1.1rem; font-weight: 700; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .qty-btn:hover { background: rgba(226,182,92,0.25); color: var(--gold); }
+  .qty-btn:active { transform: scale(0.9); }
+  .qty-display { width: 52px; text-align: center; font-size: 1rem; font-weight: 700; color: var(--text); background: rgba(15,25,45,0.6); border-left: 1px solid #2a3a5a; border-right: 1px solid #2a3a5a; height: 32px; line-height: 32px; border-top: none; border-bottom: none; outline: none; }
+  .qty-display:focus { color: var(--gold); background: rgba(226,182,92,0.12); }
+  .qty-display::-webkit-outer-spin-button, .qty-display::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .qty-display[type=number] { -moz-appearance: textfield; }
+
+  .actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .btn { padding: 9px 24px; border-radius: 10px; border: none; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: all 0.2s; }
+  .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: var(--bg1); }
+  .btn-gold:hover { box-shadow: 0 0 16px rgba(226,182,92,0.4); }
+  .btn-outline { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-danger { background: rgba(255,80,80,0.12); color: #ff8080; border: 1px solid rgba(255,80,80,0.3); }
+  .btn-danger:hover { background: rgba(255,80,80,0.22); }
+
+  .selected-list { margin-top: 20px; background: rgba(20,30,55,0.6); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .selected-list h3 { font-size: 0.95rem; color: #aabbdd; margin-bottom: 10px; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; background: rgba(226,182,92,0.15); border: 1px solid rgba(226,182,92,0.3); color: var(--gold); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; margin: 3px; }
+  .tag .qty-badge { background: var(--gold); color: var(--bg1); font-weight: 700; padding: 1px 7px; border-radius: 12px; font-size: 0.75rem; }
+  .empty-hint { color: var(--text-faint); font-size: 0.85rem; font-style: italic; }
+
+  .edit-panel { display: none; background: rgba(20,30,55,0.7); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+  .edit-panel.visible { display: block; }
+  .edit-section { margin-bottom: 18px; }
+  .edit-section h3 { font-size: 0.95rem; color: var(--gold); margin-bottom: 10px; }
+  .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .form-field { display: flex; flex-direction: column; gap: 4px; }
+  .form-field label { font-size: 0.75rem; color: var(--text-faint); }
+  .form-field input { background: rgba(15,25,45,0.8); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 0.9rem; width: 100%; }
+  .form-field input:focus { outline: none; border-color: var(--gold); }
+  .form-field input::placeholder { color: #3a4a6a; }
+
+  .io-area { margin-top: 16px; }
+  .io-area textarea { width: 100%; min-height: 100px; background: rgba(10,18,35,0.8); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text); font-size: 0.82rem; font-family: "Consolas", monospace; resize: vertical; }
+  .io-area textarea:focus { outline: none; border-color: var(--gold); }
+  .io-hint { font-size: 0.75rem; color: var(--text-faint); margin-top: 4px; }
+
+  /* 分享二维码弹窗 */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 2000;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal-card {
+    background: linear-gradient(135deg, #1e2a4a, #2a3a5a); border: 1px solid #3a4a6a;
+    border-radius: 20px; padding: 30px; max-width: 420px; width: 90%; text-align: center;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  }
+  .modal-card h2 { color: var(--gold); font-size: 1.3rem; margin-bottom: 6px; }
+  .modal-card p { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 20px; }
+  #qrCanvas { background: #fff; border-radius: 12px; padding: 16px; margin: 0 auto 16px; display: block; }
+  .modal-url {
+    background: rgba(10,18,35,0.8); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; color: var(--gold); font-size: 0.82rem; font-family: monospace;
+    word-break: break-all; margin-bottom: 16px; text-align: left; cursor: pointer;
+  }
+  .modal-url:hover { border-color: var(--gold); }
+  .modal-close { margin-top: 8px; }
+
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: var(--bg1); padding: 10px 24px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; z-index: 9999; transition: transform 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🏆 积分计算器</h1>
+    <p>通用版 · 支持自定义藏品 · 数据本地保存 · 可分享</p>
+    <div class="tab-bar">
+      <div class="tab active" id="tabCalc" onclick="switchTab('calc')">计算模式</div>
+      <div class="tab" id="tabEdit" onclick="switchTab('edit')">编辑模式</div>
+    </div>
+  </header>
+
+  <div class="score-panel">
+    <div>
+      <div class="label">当前总积分</div>
+      <div class="total" id="totalScore">0</div>
+    </div>
+    <div class="right">
+      <div class="label">已选件数</div>
+      <div class="total" id="totalCount" style="font-size:2rem;">0</div>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+  <div id="calcMode" style="margin-top:20px;">
+    <div id="groupsContainer"></div>
+    <div class="selected-list">
+      <h3>📋 已选明细</h3>
+      <div id="selectedTags"><span class="empty-hint">尚未选择任何藏品</span></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="expandAll()">全部展开</button>
+      <button class="btn btn-outline" onclick="collapseAll()">全部折叠</button>
+      <button class="btn btn-danger" onclick="clearAll()">清空选择</button>
+      <button class="btn btn-gold" onclick="exportResult()">导出结果</button>
+      <button class="btn btn-gold" onclick="showShareQR()">📱 分享二维码</button>
+    </div>
+  </div>
+
+  <div id="editMode" style="display:none;">
+    <div class="edit-panel visible">
+      <div class="edit-section">
+        <h3>➕ 添加新藏品</h3>
+        <div class="form-row">
+          <div class="form-field" style="flex:1; min-width:180px;">
+            <label>藏品名称</label>
+            <input id="newName" placeholder="如：《论语注疏解经二十卷》" />
+          </div>
+          <div class="form-field" style="width:90px;">
+            <label>分值</label>
+            <input id="newScore" type="number" value="3" min="1" max="999" />
+          </div>
+          <div class="form-field" style="flex:1; min-width:120px;">
+            <label>备注（可选）</label>
+            <input id="newNote" placeholder="简要说明" />
+          </div>
+          <button class="btn btn-gold" onclick="addItem()">添加</button>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <h3>➕ 批量添加（统一分值）</h3>
+        <div class="form-row">
+          <div class="form-field" style="width:90px;">
+            <label>统一分值</label>
+            <input id="batchScore" type="number" value="3" min="1" max="999" />
+          </div>
+          <div class="form-field" style="flex:1; min-width:200px;">
+            <label>藏品名称（每行一个）</label>
+            <input id="batchNames" placeholder="每行输入一个名称" style="height:60px;" />
+          </div>
+          <button class="btn btn-gold" onclick="addBatch()">批量添加</button>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <h3>💾 导入 / 导出配置</h3>
+        <div class="io-area">
+          <textarea id="configArea" placeholder='粘贴JSON配置可导入，或点"导出配置"获取当前配置...'></textarea>
+          <div class="io-hint">支持 JSON 格式：[{"score":45,"items":[{"name":"...","note":"..."}]}]</div>
+          <div class="actions" style="margin-top:10px;">
+            <button class="btn btn-outline" onclick="exportConfig()">导出配置</button>
+            <button class="btn btn-gold" onclick="importConfig()">导入配置</button>
+            <button class="btn btn-danger" onclick="resetToDefault()">恢复默认</button>
+            <button class="btn btn-danger" onclick="deleteAllItems()">清空所有</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-top:30px; color:var(--text-faint); font-size:0.75rem;">
+    数据自动保存在浏览器本地 · 单文件HTML可离线使用
+  </div>
+</div>
+
+<!-- 分享二维码弹窗 -->
+<div class="modal-overlay" id="qrModal" onclick="if(event.target===this)closeShareQR()">
+  <div class="modal-card">
+    <h2>📱 扫码访问</h2>
+    <p>用手机扫描下方二维码即可打开计算器</p>
+    <canvas id="qrCanvas" width="256" height="256"></canvas>
+    <div class="modal-url" id="shareUrl" onclick="copyShareUrl()"></div>
+    <div style="display:flex; gap:10px; justify-content:center;">
+      <button class="btn btn-gold" onclick="copyShareUrl()">复制链接</button>
+      <button class="btn btn-outline modal-close" onclick="closeShareQR()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- QR码生成库（纯JS，内联） -->
+<script>
+// ===== qr-code-generator (简化内联版) =====
+// 基于 QRCode for JavaScript by davidshimjs
+var QRCode=function(){function a(a){this.mode=f.MODE_8BIT_BYTE;this.parsedData=a;this.parsedData=this.parsedData}a.prototype={getLength:function(){return this.parsedData.length},write:function(a){for(var b=0;b<this.parsedData.length;b++){a.put(this.parsedData.charCodeAt(b))}}};function b(a,b){this.typeNumber=a;this.errorCorrectLevel=b;this.modules=null;this.moduleCount=0;this.dataCache=null;this.dataList=[]}b.prototype={addData:function(b){var c=new a(b);this.dataList.push(c);this.dataCache=null},isDark:function(a,b){if(a<0||this.moduleCount<=a||b<0||this.moduleCount<=b)throw new Error(a+","+b);return this.modules[a][b]},getModuleCount:function(){return this.moduleCount},make:function(){this.makeImpl(!1,this.getBestMaskPattern())},makeImpl:function(a,b){this.moduleCount=4*this.typeNumber+17;this.modules=new Array(this.moduleCount);for(var c=0;c<this.moduleCount;c++){this.modules[c]=new Array(this.moduleCount);for(var d=0;d<this.moduleCount;d++)this.modules[c][d]=null}this.setupPositionProbePattern(0,0);this.setupPositionProbePattern(this.moduleCount-7,0);this.setupPositionProbePattern(0,this.moduleCount-7);this.setupPositionAdjustPattern();this.setupTimingPattern();this.setupTypeInfo(a,b);if(this.typeNumber>=7)this.setupTypeNumber(a);if(this.dataCache==null)this.dataCache=b.createData(this.typeNumber,this.errorCorrectLevel,this.dataList);this.mapData(this.dataCache,b)},setupPositionProbePattern:function(a,b){for(var c=-1;c<=7;c++){if(a+c<=-1||this.moduleCount<=a+c)continue;for(var d=-1;d<=7;d++){if(b+d<=-1||this.moduleCount<=b+d)continue;if(0<=c&&c<=6&&(0==d||6==d)||0<=d&&d<=6&&(0==c||6==c)||2<=c&&c<=4&&2<=d&&d<=4)this.modules[a+c][b+d]=!0;else this.modules[a+c][b+d]=!1}}},getBestMaskPattern:function(){for(var a=0,b=0,c=0;c<8;c++){this.makeImpl(!0,c);var d=g_lostPoint(this);if(c==0||a>d){a=d;b=c}}return b},setupTimingPattern:function(){for(var a=8;a<this.moduleCount-8;a++)this.modules[a][6]=this.modules[6][a]=a%2==0},setupPositionAdjustPattern:function(){for(var a=b.PAD0,c=b.PAD1,d=1+Math.floor(this.moduleCount/7),e=Math.floor((this.moduleCount-13)/d),f=this.moduleCount-6,g=0;g<d;g++){for(var h=6+g*e;g==d-1&&(h=f);){this.modules[6][h]=this.modules[h][6]=!0;h+=0;break}}for(g=0;g<d;g++)for(var i=6+g*e;g==d-1&&(i=f);){for(var j=0;j<g;j++){var k=6+d-j*e;if(this.modules[k][6]==null)this.modules[k][6]=!0;if(this.modules[6][k]==null)this.modules[6][k]=!0}for(j=0;j<=g;j++){var l=6+d-j*e;if(this.modules[i][l]==null)this.modules[i][l]=!0;if(this.modules[l][i]==null)this.modules[l][i]=!0}i+=0;break}},setupTypeNumber:function(a){for(var b=0;b<18;b++){var c=!a&&1==(b>>1&1);this.modules[Math.floor(b/3)][b%3+this.moduleCount-11]=c;this.modules[b%3+this.moduleCount-11][Math.floor(b/3)]=c}},setupTypeInfo:function(a,b){for(var c=this.errorCorrectLevel,d=0,e=0;e<8;e++)d|=1==(c>>e&1)<<e;for(e=0;e<8;e++){var f=!a&&1==(b>>e&1);e<6?this.modules[e][8]=f:e<8?this.modules[e+1][8]=f:this.modules[this.moduleCount-15+e][8]=f}for(e=0;e<8;e++){f=!a&&1==(b>>e&1);e<6?this.modules[8][this.moduleCount-e-1]=f:e<7?this.modules[8][this.moduleCount-6]=f:e==7&&(this.modules[8][this.moduleCount-15]=f)}this.modules[this.moduleCount-8][8]=!a},mapData:function(a,b){for(var c=-1,d=this.moduleCount-1,e=7,f=0,g=this.moduleCount,h=0;h<g;h++){if(h==6)continue;var i=0;for(var j=0;j<2;j++){var k=d+j;if(this.modules[k][e]==null){var l=!1;if(f<a.length)l=1==(a[f]>>e&1);if(g.getMask(b,k,e))l=!l;this.modules[k][e]=l;e--;e<0&&(e=7,d+=c,c=-1,i++)}}i==2&&(d+=c,c=-1,e=7)}}};b.PAD0=236;b.PAD1=17;b.createData=function(a,c,d){var e=b.getDataBitsLen(a,c),f=-1;if(d.length>0){f=d[0].getLength()}for(var g=0,h=0,i=0;i<d.length;i++){var j=d[i];g+=4+4*b.getLengthInBits(a,f)+j.getLength()+b.getLengthInBits(a,f);h+=j.getLength()}var k=0;if(g!=e)k=e-g;if(h+k/8>b.getDataCapacity(a,c))throw new Error("data is too big");return b.createBytes(d,k,e)};b.getDataBitsLen=function(a,b){return b.getDataBitsLen(a)};b.getLengthInBits=function(a,b){if(1<=a&&a<10)return 8;else if(a<27)return 16;else if(a<41)return 16;else throw new Error("type:"+a)};b.getDataCapacity=function(a,c){return Math.floor((b.getCapacity(a,c)*8)/8)};b.getCapacity=function(a,b){var c=2*a;var d=4*c+17;var e=d*d;var f=Math.floor(e/8);var g=b.getDataBitsLen(a);var h=Math.floor(g/8);var i=f-h;return i};b.createBytes=function(a,c,d){for(var e=0,f=0,g=0,h=0,i=0,j=0,k=a.length;i<k;i++){var l=a[i];var m=l.getLength();var n=l.write(e);e+=m;if(n){f+=m}}var o=Math.floor(f/8);var p=new Array(o);for(var q=0,r=0;q<o;q++){var s=0;for(var t=0;t<8;t++){s<<=1;if(r<f){s|=p[r]?1:0;r++}}p[q]=s}if(c>0){for(q=0;q<c/8;q++)p[o+q]=q%2?b.PAD1:b.PAD0;return p}return p};var f={MODE_8BIT_BYTE:4};var g={L:1,M:0,Q:3,H:2};function h(a,b){this.errorCorrectLevel=a;this.maskPattern=b}h.prototype={getDataBitsLen:function(a){return b.getCapacity(a,this.errorCorrectLevel)*8}};function g_lostPoint(a){for(var b=a.getModuleCount(),c=0,d=0;d<b;d++)for(var e=0;e<b;e++){var f=0,g=a.isDark(d,e);for(var h=-1;h<=1;h++){if(d+h<0||b<=d+h)continue;for(var i=-1;i<=1;i++){if(e+i<0||b<=e+i)continue;if(h==0&&i==0)continue;g^=a.isDark(d+h,e+i);if(g)f++}}if(f>5)c+=3+f-5}for(d=0;d<b-1;d++)for(e=0;e<b-1;e++){f=0;if(a.isDark(d,e))f++;if(a.isDark(d+1,e))f++;if(a.isDark(d,e+1))f++;if(a.isDark(d+1,e+1))f++;if(f==0||f==4)c+=3}for(d=0;d<b;d++)for(e=0;e<b-6;e++)if(a.isDark(d,e)&&!a.isDark(d,e+1)&&a.isDark(d,e+2)&&a.isDark(d,e+3)&&a.isDark(d,e+4)&&!a.isDark(d,e+5)&&a.isDark(d,e+6))c+=40;for(e=0;e<b;e++)for(d=0;d<b-6;d++)if(a.isDark(d,e)&&!a.isDark(d+1,e)&&a.isDark(d+2,e)&&a.isDark(d+3,e)&&a.isDark(d+4,e)&&!a.isDark(d+5,e)&&a.isDark(d+6,e))c+=40;var i=0;for(d=0;d<b;d++)for(e=0;e<b;e++)a.isDark(d,e)&&i++;var j=Math.abs(100*i/b/b-50)/5;c+=10*j;return c}h.getMask=function(a,b,c){if(a==0)return(b+c)%2==0;else if(a==1)return b%2==0;else if(a==2)return c%3==0;else if(a==3)return(b+c)%3==0;else if(a==4)return(Math.floor(b/2)+Math.floor(c/3))%2==0;else if(a==5)return b*c%2+b*c%3==0;else if(a==6)return b*c%2+b*c%3==0;else if(a==7)return(b+c)%2+b*c%3==0;else throw new Error("mask:"+a)};function i(a){var b=[];for(var c=0;c<a.length;c++){var d=a.charCodeAt(c);if(d>65536){b.push(240|(1835008&d)>>>18);b.push(128|(258048&d)>>>12);b.push(128|(4032&d)>>>6);b.push(128|63&d)}else if(d>2048){b.push(224|(61440&d)>>>12);b.push(128|(4032&d)>>>6);b.push(128|63&d)}else if(d>128){b.push(192|(1984&d)>>>6);b.push(128|63&d)}else b.push(d)}return b}return{create:function(a,c){var d=new b(a,c);for(var e=0;e<arguments.length-2;e++)d.addData(arguments[e+2]);d.make();return d},ErrorCodeCorrectLevel:g,QRErrorCorrectLevel:g,QRCode:b}}();
+</script>
+
+<script>
+// ===== 默认数据 =====
+const DEFAULT_DATA = [
+  { score: 45, items: [{ name: "《共产党宣言》手稿", note: "马克思、恩格斯著作手稿" }]},
+  { score: 28, items: [{ name: '"赓续文脉"印章雕塑', note: "印章主题雕塑作品" }]},
+  { score: 18, items: [{ name: "《吉祥遍至口合本续》", note: "藏文佛教经典" }]},
+  { score: 10, items: [{ name: "《伟业征程》", note: "" }]},
+  { score: 8, items: [
+    { name: "《山河揽胜》壁画", note: "壁画作品" },
+    { name: "墨皇本《集王圣教序》", note: "王羲之集字碑帖" },
+    { name: "《西楼苏帖》", note: "苏轼书法法帖" },
+    { name: "《棠湖诗稿》", note: "古典诗集" }
+  ]},
+  { score: 6, items: [
+    { name: "大匠丝路", note: "丝路主题作品" },
+    { name: "《妙法莲华经卷第四》", note: "佛教经典法华经" },
+    { name: "《使琉球录》", note: "明代出使琉球记录" },
+    { name: "《丝路华光》", note: "丝路主题作品" }
+  ]},
+  { score: 3, items: [
+    { name: "《丁氏家藏晚清名人书札》", note: "晚清名人书信集" },
+    { name: "林则徐行书中堂《苏轼书司空图诗》", note: "林则徐书法作品" },
+    { name: "《淮河全图》", note: "淮河流域地图" },
+    { name: "《运河全图》", note: "运河全图" },
+    { name: "《黄河全图》", note: "黄河流域地图" },
+    { name: "《老子道德经二卷》", note: "道德经古籍" },
+    { name: "《萌宋楼藏书源流考》", note: "藏书源流考证文献" },
+    { name: "《论语注疏解经二十卷》", note: "论语注疏经典" },
+    { name: "《世说新语八卷》", note: "南朝笔记小说" },
+    { name: "《宋元旧本书经眼录》", note: "宋元善本目录学著作" },
+    { name: "《苏文六卷》", note: "苏轼文集" }
+  ]}
+];
+
+let appData = [];
+let qty = {};
+const STORAGE_KEY = "heritage-calculator-data";
+const QTY_KEY = "heritage-calculator-qty";
+
+function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+function saveQty() { localStorage.setItem(QTY_KEY, JSON.stringify(qty)); }
+function loadData() {
+  try { appData = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || JSON.parse(JSON.stringify(DEFAULT_DATA)); } catch(e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+  try { qty = JSON.parse(localStorage.getItem(QTY_KEY) || "null") || {}; } catch(e) { qty = {}; }
+}
+
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+function renderGroups() {
+  const container = document.getElementById("groupsContainer");
+  container.innerHTML = "";
+  appData.forEach((grp, gi) => {
+    const groupDiv = document.createElement("div");
+    groupDiv.className = "group";
+    groupDiv.innerHTML = `
+      <div class="group-header" onclick="toggleGroup(${gi})">
+        <span class="group-badge">${grp.score}分</span>
+        <span class="group-title">${grp.items.length}种</span>
+        <span class="group-subtotal" id="subtotal${gi}">小计: 0</span>
+        <span class="group-arrow" id="arrow${gi}">▼</span>
+        <span class="group-delete" onclick="event.stopPropagation(); deleteGroup(${gi})" title="删除分组">✕</span>
+      </div>
+      <div class="group-items" id="items${gi}">
+        ${grp.items.map((item, ii) => {
+          const id = `${gi}-${ii}`;
+          return `
+          <div class="item ${qty[id] > 0 ? 'active' : ''}" id="item-${id}">
+            <div class="item-info">
+              <div class="item-name">${escapeHtml(item.name)}</div>
+              ${item.note ? `<div class="item-note">${escapeHtml(item.note)}</div>` : ""}
+            </div>
+            <div class="qty-control">
+              <button class="qty-btn" onclick="changeQty('${id}', -1, ${grp.score}, ${gi})">−</button>
+              <input class="qty-display" id="qty-${id}" type="number" min="0" max="999" value="${qty[id] || 0}" onchange="setQty('${id}', this.value, ${grp.score})" onkeydown="if(event.key==='Enter')this.blur()" />
+              <button class="qty-btn" onclick="changeQty('${id}', 1, ${grp.score}, ${gi})">＋</button>
+            </div>
+            <div class="item-score" id="score-${id}">${(qty[id]||0) * grp.score || grp.score}</div>
+            <span class="item-delete" onclick="deleteItem(${gi}, ${ii})" title="删除">✕</span>
+          </div>`;
+        }).join("")}
+      </div>`;
+    container.appendChild(groupDiv);
+  });
+  updateScore();
+}
+
+function changeQty(id, delta, score, gi) {
+  const nq = Math.max(0, Math.min(999, (qty[id] || 0) + delta));
+  qty[id] = nq;
+  document.getElementById(`qty-${id}`).value = nq;
+  const itemEl = document.getElementById(`item-${id}`);
+  const scoreEl = document.getElementById(`score-${id}`);
+  if (nq > 0) { itemEl.classList.add("active"); scoreEl.textContent = nq * score; }
+  else { itemEl.classList.remove("active"); scoreEl.textContent = score; }
+  saveQty(); updateScore();
+}
+
+function setQty(id, val, score) {
+  let nq = parseInt(val, 10);
+  if (isNaN(nq) || nq < 0) nq = 0;
+  if (nq > 999) nq = 999;
+  qty[id] = nq;
+  document.getElementById(`qty-${id}`).value = nq;
+  const itemEl = document.getElementById(`item-${id}`);
+  const scoreEl = document.getElementById(`score-${id}`);
+  if (nq > 0) { itemEl.classList.add("active"); scoreEl.textContent = nq * score; }
+  else { itemEl.classList.remove("active"); scoreEl.textContent = score; }
+  saveQty(); updateScore();
+}
+
+function updateScore() {
+  let total = 0, count = 0;
+  const details = [];
+  appData.forEach((grp, gi) => {
+    let sub = 0;
+    grp.items.forEach((item, ii) => {
+      const id = `${gi}-${ii}`;
+      const q = qty[id] || 0;
+      if (q > 0) { const s = q * grp.score; total += s; count += q; sub += s; details.push({ name: item.name, qty: q, score: s }); }
+    });
+    const subEl = document.getElementById(`subtotal${gi}`);
+    if (subEl) { subEl.textContent = `小计: ${sub}`; subEl.classList.toggle("active", sub > 0); }
+  });
+  document.getElementById("totalScore").textContent = total;
+  document.getElementById("totalCount").textContent = count;
+  const maxPossible = appData.reduce((s,g) => s + g.score * g.items.length * 5, 0);
+  document.getElementById("progressFill").style.width = (maxPossible > 0 ? Math.min(100, total / maxPossible * 100) : 0) + "%";
+  const tagsDiv = document.getElementById("selectedTags");
+  tagsDiv.innerHTML = details.length === 0
+    ? '<span class="empty-hint">尚未选择任何藏品</span>'
+    : details.map(d => `<span class="tag">${escapeHtml(d.name)} <span class="qty-badge">×${d.qty}</span> ${d.score}分</span>`).join("");
+}
+
+function toggleGroup(gi) { document.getElementById(`items${gi}`).classList.toggle("collapsed"); document.getElementById(`arrow${gi}`).classList.toggle("collapsed"); }
+function expandAll() { document.querySelectorAll(".group-items").forEach(el => el.classList.remove("collapsed")); document.querySelectorAll(".group-arrow").forEach(el => el.classList.remove("collapsed")); }
+function collapseAll() { document.querySelectorAll(".group-items").forEach(el => el.classList.add("collapsed")); document.querySelectorAll(".group-arrow").forEach(el => el.classList.add("collapsed")); }
+function switchTab(tab) {
+  if (tab === "calc") { document.getElementById("calcMode").style.display = ""; document.getElementById("editMode").style.display = "none"; document.getElementById("tabCalc").classList.add("active"); document.getElementById("tabEdit").classList.remove("active"); }
+  else { document.getElementById("calcMode").style.display = "none"; document.getElementById("editMode").style.display = ""; document.getElementById("tabCalc").classList.remove("active"); document.getElementById("tabEdit").classList.add("active"); }
+}
+
+function addItem() {
+  const name = document.getElementById("newName").value.trim();
+  const score = parseInt(document.getElementById("newScore").value);
+  const note = document.getElementById("newNote").value.trim();
+  if (!name || !score || score < 1) { showToast("请填写名称和分值"); return; }
+  let grp = appData.find(g => g.score === score);
+  if (grp) grp.items.push({ name, note });
+  else { appData.push({ score, items: [{ name, note }] }); appData.sort((a,b) => b.score - a.score); }
+  rebuildQty(); saveData(); saveQty();
+  document.getElementById("newName").value = ""; document.getElementById("newNote").value = "";
+  renderGroups(); showToast(`已添加「${name}」`);
+}
+
+function addBatch() {
+  const score = parseInt(document.getElementById("batchScore").value);
+  const names = document.getElementById("batchNames").value.split("\n").map(s => s.trim()).filter(Boolean);
+  if (!score || score < 1 || names.length === 0) { showToast("请填写分值和至少一个名称"); return; }
+  let grp = appData.find(g => g.score === score);
+  if (grp) names.forEach(n => grp.items.push({ name: n, note: "" }));
+  else { appData.push({ score, items: names.map(n => ({ name: n, note: "" })) }); appData.sort((a,b) => b.score - a.score); }
+  rebuildQty(); saveData(); saveQty();
+  document.getElementById("batchNames").value = "";
+  renderGroups(); showToast(`已添加 ${names.length} 件藏品`);
+}
+
+function deleteItem(gi, ii) {
+  const name = appData[gi].items[ii].name;
+  appData[gi].items.splice(ii, 1);
+  if (appData[gi].items.length === 0) appData.splice(gi, 1);
+  rebuildQty(); saveData(); saveQty(); renderGroups();
+  showToast(`已删除「${name}」`);
+}
+
+function deleteGroup(gi) {
+  appData.splice(gi, 1);
+  rebuildQty(); saveData(); saveQty(); renderGroups();
+  showToast("已删除整组");
+}
+
+function deleteAllItems() {
+  if (!confirm("确定清空所有藏品？此操作不可撤销。")) return;
+  appData = []; qty = {}; saveData(); saveQty(); renderGroups();
+  showToast("已清空所有藏品");
+}
+
+function rebuildQty() {
+  const oldQty = { ...qty };
+  qty = {};
+  appData.forEach((grp, gi) => {
+    grp.items.forEach((item, ii) => {
+      const oldKey = Object.keys(oldQty).find(k => {
+        const [og, oi] = k.split("-");
+        return appData[og] && appData[og].items[oi] && appData[og].items[oi].name === item.name;
+      });
+      qty[`${gi}-${ii}`] = oldKey ? oldQty[oldKey] : 0;
+    });
+  });
+}
+
+function exportConfig() {
+  document.getElementById("configArea").value = JSON.stringify(appData, null, 2);
+  showToast("配置已导出到文本框");
+}
+
+function importConfig() {
+  try {
+    const text = document.getElementById("configArea").value.trim();
+    if (!text) { showToast("请先粘贴JSON配置"); return; }
+    appData = JSON.parse(text);
+    if (!Array.isArray(appData)) throw new Error("格式错误");
+    rebuildQty(); saveData(); saveQty(); renderGroups();
+    showToast("配置导入成功！");
+  } catch(e) { showToast("导入失败: " + e.message); }
+}
+
+function exportResult() {
+  let total = 0; const lines = [];
+  appData.forEach((grp, gi) => {
+    grp.items.forEach((item, ii) => {
+      const q = qty[`${gi}-${ii}`] || 0;
+      if (q > 0) { total += q * grp.score; lines.push(`${item.name}\t×${q}\t${q * grp.score}分`); }
+    });
+  });
+  lines.push(`\n总计\t${total}分`);
+  const text = `积分计算结果\n${"=".repeat(30)}\n${lines.join("\n")}\n\n生成时间: ${new Date().toLocaleString("zh-CN")}`;
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `积分结果_${Date.now()}.txt`; a.click();
+  showToast("结果已导出");
+}
+
+function resetToDefault() {
+  if (!confirm("恢复默认数据？当前自定义内容将丢失。")) return;
+  appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); qty = {};
+  saveData(); saveQty(); renderGroups();
+  showToast("已恢复默认数据");
+}
+
+function clearAll() { qty = {}; saveQty(); renderGroups(); showToast("已清空选择"); }
+
+// ===== 二维码分享 =====
+function showShareQR() {
+  const url = window.location.href;
+  document.getElementById("shareUrl").textContent = url;
+  const canvas = document.getElementById("qrCanvas");
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 256, 256);
+  try {
+    const qr = QRCode.create(20, QRCode.ErrorCodeCorrectLevel.L, url);
+    const count = qr.getModuleCount();
+    const cellSize = 224 / count;
+    const offset = 16;
+    ctx.fillStyle = "#000";
+    for (let r = 0; r < count; r++)
+      for (let c = 0; c < count; c++)
+        if (qr.isDark(r, c))
+          ctx.fillRect(offset + c * cellSize, offset + r * cellSize, cellSize, cellSize);
+  } catch(e) {
+    ctx.fillStyle = "#000"; ctx.font = "14px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("URL太长，请手动复制链接", 128, 128);
+  }
+  document.getElementById("qrModal").classList.add("visible");
+}
+
+function closeShareQR() { document.getElementById("qrModal").classList.remove("visible"); }
+
+function copyShareUrl() {
+  const url = window.location.href;
+  navigator.clipboard.writeText(url).then(() => showToast("链接已复制到剪贴板")).catch(() => {
+    const ta = document.createElement("textarea"); ta.value = url; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); showToast("链接已复制"); } catch(e) { showToast("请手动复制链接"); }
+    document.body.removeChild(ta);
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+// ===== 初始化 =====
+loadData(); renderGroups();
+</script>
+</body>
+</html>
